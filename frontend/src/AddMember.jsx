@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 export default function AddMember() {
+  const [editing, setEditing] = useState(null);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
@@ -62,8 +63,8 @@ useEffect(() => {
     setMessage("");
 
     try {
-      const response = await fetch("/api/members", {
-        method: "POST",
+      const response = await fetch(editing ? `/api/members/${editing.id}` : "/api/members", {
+        method: editing ? "PUT" : "POST",
         headers: {
           "Content-Type": "application/json",
           Accept: "application/json",
@@ -82,9 +83,10 @@ useEffect(() => {
         return;
       }
 
-           const saved = await response.json();
-      setMessage(`Saved ${saved.name}. Member ID: ${saved.id}.`);
+      const saved = await response.json();
+      setMessage(`${editing ? "Updated" : "Registered"} ${saved.name}. Member ID: ${saved.id}.`);
       form.reset();
+      setEditing(null);
       setListVersion(version => version + 1);
     } catch {
       setMessage("Could not reach the API. Check that Laravel is running.");
@@ -95,14 +97,15 @@ useEffect(() => {
 
   return (
     <main>
-      <h1>Add Member</h1>
+      <h1>{editing ? `Edit Member #${editing.id}` : "Add Member"}</h1>
 
-      <form onSubmit={handleSubmit}>
+      <form key={editing?.id ?? "new"} onSubmit={handleSubmit}>
+        <fieldset disabled={saving}>
         <p>
           <label>
             Name
             <br />
-            <input name="name" autoComplete="name" maxLength={255} required />
+            <input defaultValue={editing?.name ?? ""} name="name" autoComplete="name" maxLength={255} required />
           </label>
         </p>
         <p>
@@ -111,6 +114,7 @@ useEffect(() => {
             <br />
             <input
               name="phone"
+              defaultValue={editing?.phone ?? ""}
               type="tel"
               autoComplete="tel"
               maxLength={20}
@@ -124,6 +128,7 @@ useEffect(() => {
             <br />
             <input
               name="email"
+              defaultValue={editing?.email ?? ""}
               type="email"
               autoComplete="email"
               maxLength={255}
@@ -132,8 +137,10 @@ useEffect(() => {
         </p>
 
         <button type="submit" disabled={saving}>
-          {saving ? "Saving…" : "Save"}
+          {saving ? "Saving…" : editing ? "Save Changes" : "Save"}
         </button>
+        {editing && <button type="button" onClick={() => { setEditing(null); setMessage(""); }}>Cancel</button>}
+        </fieldset>
       </form>
       <p role="status">{message}</p>
 <section aria-labelledby="members-heading">
@@ -165,6 +172,7 @@ useEffect(() => {
           <th scope="col">Name</th>
           <th scope="col">Phone</th>
           <th scope="col">Email</th>
+          <th scope="col">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -174,6 +182,11 @@ useEffect(() => {
             <td>{member.name}</td>
             <td>{member.phone}</td>
             <td>{member.email || '—'}</td>
+            <td><button type="button" disabled={saving} onClick={() => {
+              setEditing(member);
+              setMessage("");
+              window.scrollTo(0, 0);
+            }}>Edit</button></td>
           </tr>
         ))}
       </tbody>
